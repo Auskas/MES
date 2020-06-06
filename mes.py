@@ -18,7 +18,7 @@ import random
 import time
 import json
 import logging
-import sys
+import sys, os
 import threading
 
 def get_random_time():
@@ -36,7 +36,8 @@ def get_random_time_playback():
 def login():
 	try:
 	    element = WebDriverWait(driver, 10).until(
-	        EC.presence_of_element_located((By.CLASS_NAME, 'loginButton-29'))
+	        #EC.presence_of_element_located((By.CLASS_NAME, 'loginButton-29'))
+                EC.presence_of_element_located((By.XPATH, "//span[contains(@class, 'loginButton')]"))
 	    )
 	except Exception as exc:
 		logger.error('Cannot find the login button.')
@@ -46,9 +47,10 @@ def login():
 		logger.debug('The login button has been found.')
 
 	time.sleep(get_random_time())	
-	login_button = driver.find_element_by_class_name('loginButton-29')
+	login_button = driver.find_element_by_xpath("//span[contains(@class, 'loginButton')]")
 
 	driver.execute_script("arguments[0].scrollIntoView();", login_button)
+	logger.debug('Scrolling the login button into view...')
 	time.sleep(get_random_time())
 	action = ActionChains(driver)
 	action.move_to_element(login_button)
@@ -109,7 +111,8 @@ def login():
 def search_a_topic():
 	try:
 	    element = WebDriverWait(driver, 10).until(
-	        EC.presence_of_element_located((By.CLASS_NAME, 'searchInput-86'))
+	        #EC.presence_of_element_located((By.CLASS_NAME, 'searchInput-86'))
+                EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'searchInput')]"))
 	    )
 	except Exception as exc:
 		logger.error('Cannot find the search field.')
@@ -119,7 +122,7 @@ def search_a_topic():
 		logger.debug('The search field has been found.')
 
 	time.sleep(get_random_time())
-	search_field = driver.find_element_by_class_name('searchInput-86')
+	search_field = driver.find_element_by_xpath("//input[contains(@class, 'searchInput')]")
 
 	search_field.clear()
 	time.sleep(get_random_time())
@@ -136,16 +139,15 @@ def search_a_topic():
 def all_scenarios_checkbox():
 	try:
 	    element = WebDriverWait(driver, 10).until(
-	        EC.presence_of_element_located((By.CLASS_NAME, 'checkbox-161'))
+                EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'checkbox')]"))
 	    )
 	except Exception as exc:
 		logger.error('Cannot locate the lessons scenarios checkbox.')
-		driver.quit()
-		sys.exit()
+		#driver.quit()
+		#sys.exit()
 	finally:
 	    logger.debug('The lessons scenarios checkbox has been located.')
 
-	logger.debug('Found scenarios checkbox.')
 	time.sleep(get_random_time())
 	lesson = driver.find_elements_by_xpath("//*[contains(text(), 'Сценарии уроков')]")
 	lesson = lesson[0]
@@ -159,14 +161,18 @@ def all_scenarios_checkbox():
 	time.sleep(get_random_time())
 
 def random_scenario_choice():
-	try:
+	"""try:
 	    element = WebDriverWait(driver, 10).until(
 	        EC.presence_of_element_located((By.CLASS_NAME, 'material'))
+	    )"""
+	try:
+	    element = WebDriverWait(driver, 10).until(
+	        EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'material')]"))
 	    )
 	except Exception as exc:
 		logger.error(f'Cannot locate the scenarios: {exc}')
-		driver.quit()
-		sys.exit()
+		#driver.quit()
+		#sys.exit()
 	finally:
 	    logger.info('The scenarios have been located.')
 	time.sleep(get_random_time())
@@ -192,14 +198,16 @@ def random_scenario_choice():
 def scenario_walker(total_number_of_slides_seen, total_number_of_audio_atomics_played):
 	try:
 	    element = WebDriverWait(driver, 10).until(
-	        EC.presence_of_element_located((By.CLASS_NAME, 'lessonStageBookItem'))
+                EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'styles_stagePreview')]"))
+	        #EC.presence_of_element_located((By.CLASS_NAME, 'lessonStageBookItem'))
 	    )
 	except Exception as exc:
 		logger.error(f'Cannot locate the slides: {exc}')
 	finally:
 	    logger.info('The slides have been located.')
 
-	lesson = driver.find_elements_by_class_name('lessonStageBookItem')
+	#lesson = driver.find_elements_by_class_name('lessonStageBookItem')
+	lesson = driver.find_elements_by_xpath("//div[contains(@class, 'styles_stagePreview')]")
 	logger.info(f'Number of slides in the scenario: {len(lesson)}')
 	time.sleep(get_random_time())
 	for i in range(len(lesson)):
@@ -224,8 +232,8 @@ def scenario_walker(total_number_of_slides_seen, total_number_of_audio_atomics_p
 				action = ActionChains(driver)
 				time.sleep(get_random_time())
 
-				driver.execute_script("arguments[0].scrollIntoView();", audios[j])
-				time.sleep(get_random_time())
+				#driver.execute_script("arguments[0].scrollIntoView();", audios[j])
+				#time.sleep(get_random_time())
 
 				action.move_to_element(audios[j])
 				action.perform()
@@ -280,10 +288,15 @@ session_start_time = time.perf_counter()
 total_number_of_audio_atomics_played = 0
 
 logger.info('########## SCRIPT STARTED ##########')
-driver = webdriver.Firefox()
+if sys.platform == 'win32':
+	os.chdir(f'G:{os.sep}PYTHON{os.sep}MES')
+	driver = webdriver.Firefox()
+else:
+	driver = webdriver.Firefox()
 main_window = driver.current_window_handle
 
 driver.get("https://uchebnik.mos.ru/catalogue")
+#driver.get("https://uchebnik.mos.ru/composer3/lesson/1483335/view")
 
 # Calls a function that log into the service using personal credentials.
 login()
