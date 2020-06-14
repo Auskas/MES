@@ -6,6 +6,7 @@
 #              автоматический выбор названия случайного сценария (список берётся из файла topics.txt);
 #              автоматический перебор всех слайдов в сценарии со случайным временем просмотра;
 #              автоматический запуск аудио атомиков на слайдах со случайным временем прослушивания;
+#			   50% вероятность оценки просмотренного сценария для имитации "человечного поведения";
 #              отчёт о количестве просмотренных сценариев, слайдов, общего времени и т.п. за сессию.
 
 from selenium import webdriver
@@ -161,10 +162,7 @@ def all_scenarios_checkbox():
 	time.sleep(get_random_time())
 
 def random_scenario_choice():
-	"""try:
-	    element = WebDriverWait(driver, 10).until(
-	        EC.presence_of_element_located((By.CLASS_NAME, 'material'))
-	    )"""
+	""" The function is used to get a random scenario on the page and choose it."""
 	try:
 	    element = WebDriverWait(driver, 10).until(
 	        EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'material')]"))
@@ -190,10 +188,12 @@ def random_scenario_choice():
 		lesson.click()
 		logger.debug('Clicked on the scenario.')
 		time.sleep(get_random_time())
+		return random_lesson
 	except Exception as exc:
 		logger.error(f'Cannot choose the scenario: {exc}')
 		time.sleep(get_random_time())
-		random_scenario_choice()                
+		random_scenario_choice()     
+		return None           
 
 def scenario_walker(total_number_of_slides_seen, total_number_of_audio_atomics_played):
 	try:
@@ -259,6 +259,46 @@ def scenario_walker(total_number_of_slides_seen, total_number_of_audio_atomics_p
 		total_number_of_slides_seen += 1
 	return total_number_of_slides_seen, total_number_of_audio_atomics_played
 
+def give_that_man_a_cookie(scenario_number):
+	""" The function is used to rate the scenario with a 4-star or 5-star rating."""
+	try:
+		element = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, "//span[contains(@class, 'stars')]"))
+	    )
+	except Exception as exc:
+		logger.error(f'Cannot locate the rating field: {exc}')
+		return None
+	finally:
+	    logger.info('The rating field has been located.')
+
+	try:
+		action = ActionChains(driver)
+		time.sleep(get_random_time())
+		stars = driver.find_elements_by_xpath("//span[contains(@class, 'stars')]")
+		logger.debug(f'Found {len(stars)} scenarios to rate on the page.')
+		logger.debug(f'Preparing to move to the scenario rating number {scenario_number}')
+		time.sleep(get_random_time() * 3)
+		action.move_to_element(stars[scenario_number])
+		action.perform()
+
+		time.sleep(get_random_time() * 3)
+		ratings = driver.find_elements_by_xpath("//div[contains(@class, 'userVotes-')]/div[contains(@class, 'rating-')]/span[contains(@class, 'stars-')]/span[contains(@class, 'star-')]")
+		random_rating = random.randint(3,4) # get a random integer (3 or 4) to rate the scenario.
+		logger.debug(f'Found {len(ratings)} options to rate.')
+		if random_rating == 3:
+			logger.debug(f'Preparing to give the scenario the 4-star rating.')
+		else:
+			logger.debug(f'Preparing to give the scenario the 5-star rating.')
+		time.sleep(get_random_time() * 3)
+		action.move_to_element(ratings[random_rating])
+		action.pause(get_random_time())
+		action.click()
+		action.perform()
+		logger.debug(f'The scenario has been rated.')
+
+	except Exception as exc:
+		logger.error(f'Cannot rate the scenario: {exc}')
+
 with open('topics.txt', 'r') as topics_file:
 	TOPICS = json.load(topics_file)
 
@@ -273,7 +313,7 @@ logger.setLevel(logging.DEBUG)
 logFileHandler = logging.FileHandler('MES_logs.txt')
 logFileHandler.setLevel(logging.DEBUG)
 logConsoleHandler = logging.StreamHandler()
-logConsoleHandler.setLevel(logging.INFO)
+logConsoleHandler.setLevel(logging.DEBUG)
 formatterFile = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 formatterConsole = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
 logFileHandler.setFormatter(formatterFile)
@@ -286,6 +326,7 @@ total_number_of_slides_seen = 0
 names_of_scenarios_watched = []
 session_start_time = time.perf_counter()
 total_number_of_audio_atomics_played = 0
+total_number_of_scenarios_rated = 0
 
 logger.info('########## SCRIPT STARTED ##########')
 if sys.platform == 'win32':
@@ -296,26 +337,31 @@ else:
 main_window = driver.current_window_handle
 
 driver.get("https://uchebnik.mos.ru/catalogue")
-#driver.get("https://uchebnik.mos.ru/composer3/lesson/1483335/view")
-
 # Calls a function that log into the service using personal credentials.
 login()
+driver.maximize_window()
 # Calls a function that chooses 'all scenarios' filter in the main window.
 all_scenarios_checkbox()
+
 total_number_of_scenarios_to_walk = get_random_number_of_scenarios()
 for i in range(total_number_of_scenarios_to_walk):
 	logger.info(f'### Proceeding to the scenario {i+1} out of {total_number_of_scenarios_to_walk}###')
 	# Calls a function that searches a random topic in the main window.
 	search_a_topic()
 	# Calls a function that chooses a random scenario on the page.
-	random_scenario_choice()
+	current_scenario = random_scenario_choice()
 	time.sleep(get_random_time())
 	driver.switch_to.window(driver.window_handles[1])
 	time.sleep(get_random_time())
 	total_number_of_slides_seen, total_number_of_audio_atomics_played = scenario_walker(total_number_of_slides_seen, total_number_of_audio_atomics_played)
-	# To close the current tab the following hotkeys are used: Ctrl + w.
 	driver.close()
 	driver.switch_to.window(main_window)
+	if random.random() > 0.5:
+		logger.info('Lets rate the watched scenario!')
+		give_that_man_a_cookie(current_scenario)
+		total_number_of_scenarios_rated += 1
+	else:
+		logger.info('No worth rating the scenario.')
 
 # The following chunk of code is for the results printing.
 logger.info(f'Total number of scenarios browsed: {total_number_of_scenarios_to_walk}')
@@ -323,6 +369,7 @@ logger.info(f'The following scenarios were watched: {",".join(names_of_scenarios
 
 logger.info(f'Total number of slides seen: {total_number_of_slides_seen}')
 logger.info(f'Total number of audio atomics played: {total_number_of_audio_atomics_played}')
+logger.info(f'Total number of scenarios rated: {total_number_of_scenarios_rated}')
 
 total_time_browsed = time.perf_counter() - session_start_time
 hours = int(total_time_browsed // 3600)
